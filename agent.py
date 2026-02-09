@@ -1,7 +1,16 @@
 from openai import AsyncOpenAI
-from agents import Agent, OpenAIChatCompletionsModel, Runner, RunContextWrapper, ModelSettings, ItemHelpers, function_tool, set_trace_processors
+from openai.types.responses import ResponseTextDeltaEvent, ResponseFunctionToolCall
+from agents import (
+    Agent,
+    OpenAIChatCompletionsModel,
+    Runner, RunContextWrapper,
+    ModelSettings,
+    ItemHelpers,
+    function_tool, set_trace_processors
+)
 from search import SearchService, CodebaseContext
 from dataclasses import dataclass
+import dsl
 import asyncio, json
 
 
@@ -95,12 +104,16 @@ async def main():
     )
 
     context = Context(search_service=SearchService(ctx))
-    settings = ModelSettings(extra_args={"seed": 42})
+    settings = ModelSettings(
+        extra_args={
+            "seed": 42
+        }
+    )
 
     agent = Agent[Context](
         name="cpp-test-agent",
         model=OpenAIChatCompletionsModel(
-            model="mistralai/ministral-3-14b-reasoning",
+            model="openai/gpt-oss-20b",
             openai_client=client
         ),
         model_settings=settings,
@@ -110,11 +123,14 @@ async def main():
     
     result = Runner.run_streamed(  
         starting_agent=agent,
-        input='Given An empty box. When I place 2 x "apple" in it. Then The box contains 2 items.',
+        input='{"test": "Given An empty box. When I place 2 x "apple" in it. Then The box contains 2 items."}',
         context=context
     )
     
     async for event in result.stream_events():
+        if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+            print(event.data.delta, end="", flush=True)
+            
         # We'll ignore the raw responses event deltas
         if event.type == "raw_response_event":
             continue
@@ -125,13 +141,9 @@ async def main():
         # When items are generated, print them
         elif event.type == "run_item_stream_event":
             if event.item.type == "tool_call_item":
-                print("-- Tool was called")
-            elif event.item.type == "tool_call_output_item":
+                print(f"-- Tool was called")
+            if event.item.type == "tool_call_output_item":
                 print(f"-- Tool output: {event.item.output}")
-            elif event.item.type == "message_output_item":
-                print(f"-- Message output:\n {ItemHelpers.text_message_output(event.item)}")
-            else:
-                pass  # Ignore other event types
 
     print("=== Run complete ===")
 

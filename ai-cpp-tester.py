@@ -219,8 +219,7 @@ def is_file_from_includes(include_dirs: set[Path], path: Path):
     return False
 
 
-def index_cpp_file(db, include_dirs, path, clang_args):
-    index = Index.create()
+def index_cpp_file(index: Index, db, include_dirs, path, clang_args):
     tu = index.parse(path, args=clang_args, options=TranslationUnit.PARSE_SKIP_FUNCTION_BODIES)
 
     #for cursor in tu.cursor.walk_preorder():
@@ -351,11 +350,12 @@ for command in compilation_db.getAllCompileCommands():
         if arg.startswith("-I"):
             include_dirs.add(Path(arg[2:]).resolve(True))
 
+index = Index.create()
 for command in compilation_db.getAllCompileCommands():
     arguments = [arg for arg in command.arguments]
     arguments = arguments[1:-2]
     arguments.append('-fparse-all-comments')
-    index_cpp_file(ast_db, include_dirs, command.filename, arguments)
+    index_cpp_file(index, ast_db, include_dirs, command.filename, arguments)
 
 symbols = generate_symbol_texts(ast_db)
 save_index(symbols, "symbols.json")
