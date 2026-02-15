@@ -22,15 +22,15 @@ class Context:
 
 
 @function_tool
-async def hybrid_search(
+async def semantic_search(
     wrapper: RunContextWrapper[Context],
     query: str,
     top_k: int = 5
 ):
-    """"Hybrid semantic and lexical search over C++ codebase symbols."""
+    """"Semantic and lexical search over all C++ codebase symbols. This is a good choice for first step."""
 
     context = wrapper.context
-    result = await context.search_service.hybrid_search(
+    result = await context.search_service.semantic_search(
         query=query,
         top_k=top_k,
     )
@@ -42,7 +42,7 @@ async def search_by_name(
     wrapper: RunContextWrapper[Context],
     name: str
 ):
-    """"Exact or partial search by name."""
+    """"Exact or partial search by name of C++ entities like class, method of function."""
 
     context = wrapper.context
     result = await context.search_service.search_by_name(
@@ -56,7 +56,7 @@ async def get_symbol(
     wrapper: RunContextWrapper[Context],
     fqn: str
 ):
-    """"Get complete information about the symbol."""
+    """"Get complete information about the C++ symbol."""
 
     context = wrapper.context
     result = await context.search_service.get_symbol(
@@ -70,7 +70,7 @@ async def get_class_methods(
     wrapper: RunContextWrapper[Context],
     class_fqn: str
 ):
-    """"Get complete information about the symbol."""
+    """"Get information about class methods and constructors."""
 
     context = wrapper.context
     result = await context.search_service.get_class_methods(
@@ -95,7 +95,7 @@ async def main():
         api_key='no-key',
         base_url='http://localhost:8080/v1/'
     )
-    
+
     ctx = CodebaseContext(
         ast_index=load_db("ast.json"),
         embeddings=load_db("embeddings.json")["embeddings"],
@@ -113,24 +113,24 @@ async def main():
     agent = Agent[Context](
         name="cpp-test-agent",
         model=OpenAIChatCompletionsModel(
-            model="openai/gpt-oss-20b",
+            model="mistralai/ministral-3-14b-reasoning",
             openai_client=client
         ),
         model_settings=settings,
         instructions=read_prompt_file("system"),
-        tools=[hybrid_search, get_symbol, search_by_name, get_class_methods]
+        tools=[semantic_search, get_symbol, search_by_name, get_class_methods]
     )
-    
-    result = Runner.run_streamed(  
+
+    result = Runner.run_streamed(
         starting_agent=agent,
         input='{"test": "Given An empty box. When I place 2 x "apple" in it. Then The box contains 2 items."}',
         context=context
     )
-    
+
     async for event in result.stream_events():
         if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
             print(event.data.delta, end="", flush=True)
-            
+
         # We'll ignore the raw responses event deltas
         if event.type == "raw_response_event":
             continue
@@ -141,7 +141,7 @@ async def main():
         # When items are generated, print them
         elif event.type == "run_item_stream_event":
             if event.item.type == "tool_call_item":
-                print(f"-- Tool was called")
+                print(f"-- Tool was called {event.item.raw_item.name}({event.item.raw_item.arguments})")
             if event.item.type == "tool_call_output_item":
                 print(f"-- Tool output: {event.item.output}")
 

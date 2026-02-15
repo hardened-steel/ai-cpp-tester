@@ -56,7 +56,7 @@ class SearchService:
         return response.data[0].embedding
 
 
-    async def semantic_search(
+    async def raw_semantic_search(
         self,
         query: str,
         top_k: int = 10,
@@ -187,7 +187,7 @@ class SearchService:
         return out
 
 
-    async def hybrid_search(
+    async def semantic_search(
         self,
         query: str,
         top_k: int = 5,
@@ -195,7 +195,7 @@ class SearchService:
     ) -> list[dict[str, str | float | list[str]]]:
         tokens = SearchService.tokenize_query(query)
 
-        semantic_hits = await self.semantic_search(
+        semantic_hits = await self.raw_semantic_search(
             query, top_k=top_k * 2
         )
 

@@ -13,5 +13,5 @@ set_target_properties(${PROJECT_NAME}
         C_STANDARD_REQUIRED YES
         C_EXTENSIONS YES
 )
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../)
-target_link_libraries(${PROJECT_NAME} PUBLIC foo_lib)
+target_link_libraries(${PROJECT_NAME} PUBLIC foo-lib)
+ai_test(${PROJECT_NAME})
